@@ -12,11 +12,11 @@ pub struct Config {
     pub output_path: PathBuf,
 }
 
-struct ILine {
-    raw: &str,
-    label: Option<&str>,
+struct ILine<'a> {
+    raw: &'a str,
+    label: Option<&'a str>,
     instruction: Option<Instruction>,
-    comment: Option<&str>,
+    comment: Option<&'a str>,
 }
 
 struct Instruction {
@@ -39,6 +39,17 @@ enum Opcode {
     LAR,
 }
 
+enum InstructionFormat {
+    OP,
+    OP_RA_RB_RC,
+    OP_RA_RB_C2,
+    OP_RA_C1,
+    OP_RA_RC,
+    OP_RB_RC_C3,
+    OP_RA_RB_RC_C3,
+    OP_RA_RB_N,
+}
+
 impl Config {
     pub fn new(args: &[String]) -> Result<Config, &'static str> {
         if args.len() < 2 {
@@ -52,7 +63,7 @@ impl Config {
     }
 }
 
-pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+pub fn run<'a> (config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.source_path)?;
     let lines = contents.lines();
 
@@ -82,21 +93,21 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn process_line(raw: &'static str) -> Result<Option<ILine>, &'static str> {
+fn process_line<'a> (raw: &'a str) -> Result<Option<ILine>, &'static str> {
     let line = raw.trim();
     let comment_pos = line.find(';');
     let (line, comment) = match comment_pos {
         Some(x) => (&line[..x], Some(&line[x..])),
         None    => (&line[..], None),
     };
-    line = line.trim();
+    let line = line.trim();
 
     let label_pos = line.find(':');
     let (line, label) = match label_pos {
         Some(x) => (&line[x..], Some(&line[..x])),
         None    => (&line[..], None)
     };
-    line = line.trim();
+    let line = line.trim();
 
     let instruction = match process_instruction(line) {
         Ok(x) => x,
@@ -119,16 +130,37 @@ fn process_instruction(inst: &str) -> Result<Option<Instruction>, &'static str> 
         Ok(None)
     } else {
         let inst_pos = inst.find(' ');
-        let opcode = match inst_pos {
-            Some(x) => &inst[..x],
+        let (opcode, inst) = match inst_pos {
+            Some(x) => (&inst[..x], &inst[x..]),
             None => return Err("invalid")
         };
         let opcode = match Opcode::from_str(opcode) {
             Ok(x) => x,
-            Err(x) => return Err(&format!("{}", x)[..]),
+            Err(_) => return Err("Opcode not found"),
         };
-        Ok(Some(
-            Instruction {
+        let inst = match opcode {
+            Opcode::LA => process_OP_RA_RB_C2(inst, opcode),
+        };
+        match inst {
+            Ok(x) => Ok(Some(x)),
+            Err(x) => Err(x)
+        }
+    }
+}
+
+    // OP,
+    // OP_RA_RB_RC,
+    // OP_RA_RB_C2,
+    // OP_RA_C1,
+    // OP_RA_RC,
+    // OP_RB_RC_C3,
+    // OP_RA_RB_RC_C3,
+    // OP_RA_RB_N,
+
+fn process_OP (inst: &str, opcode: Opcode) -> Result<Instruction, &'static str> {
+    match inst.is_empty() {
+        True => {
+            Ok(Instruction {
                 opcode: opcode,
                 r1: None,
                 r2: None,
@@ -136,6 +168,21 @@ fn process_instruction(inst: &str) -> Result<Option<Instruction>, &'static str> 
                 c1: None,
                 c2: None,
                 c3: None,
-        }))
+            })
+        }
     }
+    
+}
+
+fn process_OP_RA_RB_C2 (inst: &str, opcode: Opcode) -> Result<Instruction, &'static str> {
+    
+    Ok(Instruction {
+            opcode: opcode,
+            r1: None,
+            r2: None,
+            r3: None,
+            c1: None,
+            c2: None,
+            c3: None,
+    })
 }
