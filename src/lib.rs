@@ -13,10 +13,10 @@ pub struct Config {
 }
 
 struct ILine {
-    raw: String,
-    label: Option<String>,
+    raw: &str,
+    label: Option<&str>,
     instruction: Option<Instruction>,
-    comment: Option<String>,
+    comment: Option<&str>,
 }
 
 struct Instruction {
@@ -56,23 +56,23 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.source_path)?;
     let lines = contents.lines();
 
-    let mut instructions = Vec::<ILine>::new();
+    let mut ilines = Vec::<ILine>::new();
 
     for line in lines {
-        match process_line(line.to_string()) {
-            Some(Ok(x)) => instructions.push(x),
-            Some(Err(x)) => eprintln!("{}", x),
-            None => (),
+        match process_line(line) {
+            Ok(Some(x)) => ilines.push(x),
+            Err(x) => eprintln!("{}", x),
+            Ok(None) => (),
         }
     }
 
-    for inst in instructions {
-        match inst.label {
+    for line in ilines {
+        match line.label {
             Some(x) => print!("[{}]",x),
             None    => print!("[.]"),
         }
         // print!("[{:?}]", inst.opcode);
-        match inst.comment {
+        match line.comment {
             Some(x) => print!("[{}]",x),
             None    => print!("[.]"),
         }
@@ -82,49 +82,60 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn process_line(line: String) -> Option<Result<ILine, &'static str>> {
-    let line = line.trim();
+fn process_line(raw: &'static str) -> Result<Option<ILine>, &'static str> {
+    let line = raw.trim();
     let comment_pos = line.find(';');
-    let line_trimmed = match comment_pos {
-        Some(x) => &line[..x],
-        None    => &line,
+    let (line, comment) = match comment_pos {
+        Some(x) => (&line[..x], Some(&line[x..])),
+        None    => (&line[..], None),
     };
-    let empty = line_trimmed.is_empty();
-    if !empty {
-        let (comment, line_trimmed) = match comment_pos {
-            Some(x) => (
-                Some(line[(x+1)..].trim().to_string()), 
-                &line_trimmed[..x]
-            ),
-            None => (None, line_trimmed),
-        };
-        let line_trimmed = line_trimmed.trim();
+    line = line.trim();
 
-        let label_pos = line_trimmed.find(':');
-        let (label, line_trimmed) = match label_pos {
-            Some(x) => (Some(line[..x].to_string()), &line_trimmed[x..]),
-            None    => (None, line_trimmed),
-        };
-        let line_trimmed = line_trimmed.trim();
+    let label_pos = line.find(':');
+    let (line, label) = match label_pos {
+        Some(x) => (&line[x..], Some(&line[..x])),
+        None    => (&line[..], None)
+    };
+    line = line.trim();
 
-        let inst_pos = line_trimmed.find(' ');
-        let (inst, line_trimmed) = match inst_pos {
-            Some(x) => (Some(line[..x].to_string()), &line_trimmed[x..]),
-            None => (None, line_trimmed),
-        };
-        let line_trimmed = line_trimmed.trim();
+    let instruction = match process_instruction(line) {
+        Ok(x) => x,
+        Err(x) => return Err(x),
+    };
 
-        let inst = Opcode::from_str(inst);
-
-        Some(Ok(ILine{
-            raw: line.to_string(),
-            label: label,
-            opcode: Opcode::LD,
-            comment: comment,
-        }))
-    } else {
-        None
-    }
+    Ok(Some(
+        ILine{
+            raw,
+            label,
+            instruction,
+            comment,
+        }
+    ))
+    
 }
 
-fn parse_instruction(inst: String) -> (opcode, usize, usize)
+fn process_instruction(inst: &str) -> Result<Option<Instruction>, &'static str> {
+    if inst.is_empty() {
+        Ok(None)
+    } else {
+        let inst_pos = inst.find(' ');
+        let opcode = match inst_pos {
+            Some(x) => &inst[..x],
+            None => return Err("invalid")
+        };
+        let opcode = match Opcode::from_str(opcode) {
+            Ok(x) => x,
+            Err(x) => return Err(&format!("{}", x)[..]),
+        };
+        Ok(Some(
+            Instruction {
+                opcode: opcode,
+                r1: None,
+                r2: None,
+                r3: None,
+                c1: None,
+                c2: None,
+                c3: None,
+        }))
+    }
+}
