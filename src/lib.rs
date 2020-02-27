@@ -2,6 +2,11 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
+extern crate strum;
+#[macro_use]
+extern crate strum_macros;
+use std::str::FromStr;
+
 pub struct Config {
     pub source_path: PathBuf,
     pub output_path: PathBuf,
@@ -10,10 +15,21 @@ pub struct Config {
 struct ILine {
     raw: String,
     label: Option<String>,
-    opcode: Opcode,
+    instruction: Option<Instruction>,
     comment: Option<String>,
 }
 
+struct Instruction {
+    opcode: Opcode,
+    r1: Option<usize>,
+    r2: Option<usize>,
+    r3: Option<usize>,
+    c1: Option<usize>,
+    c2: Option<usize>,
+    c3: Option<usize>,
+}
+
+#[derive(EnumString)]
 enum Opcode {
     LD,
     LDR,
@@ -51,7 +67,16 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     }
 
     for inst in instructions {
-        println!("{}", inst.)
+        match inst.label {
+            Some(x) => print!("[{}]",x),
+            None    => print!("[.]"),
+        }
+        // print!("[{:?}]", inst.opcode);
+        match inst.comment {
+            Some(x) => print!("[{}]",x),
+            None    => print!("[.]"),
+        }
+        println!();
     }
 
     Ok(())
@@ -66,15 +91,31 @@ fn process_line(line: String) -> Option<Result<ILine, &'static str>> {
     };
     let empty = line_trimmed.is_empty();
     if !empty {
-        let comment = match comment_pos {
-            Some(x) => Some(line[x..].to_string()),
-            None    => None,
+        let (comment, line_trimmed) = match comment_pos {
+            Some(x) => (
+                Some(line[(x+1)..].trim().to_string()), 
+                &line_trimmed[..x]
+            ),
+            None => (None, line_trimmed),
         };
+        let line_trimmed = line_trimmed.trim();
+
         let label_pos = line_trimmed.find(':');
-        let label = match label_pos {
-            Some(x) => Some(line[..x].to_string()),
-            None    => None,
+        let (label, line_trimmed) = match label_pos {
+            Some(x) => (Some(line[..x].to_string()), &line_trimmed[x..]),
+            None    => (None, line_trimmed),
         };
+        let line_trimmed = line_trimmed.trim();
+
+        let inst_pos = line_trimmed.find(' ');
+        let (inst, line_trimmed) = match inst_pos {
+            Some(x) => (Some(line[..x].to_string()), &line_trimmed[x..]),
+            None => (None, line_trimmed),
+        };
+        let line_trimmed = line_trimmed.trim();
+
+        let inst = Opcode::from_str(inst);
+
         Some(Ok(ILine{
             raw: line.to_string(),
             label: label,
@@ -85,3 +126,5 @@ fn process_line(line: String) -> Option<Result<ILine, &'static str>> {
         None
     }
 }
+
+fn parse_instruction(inst: String) -> (opcode, usize, usize)
