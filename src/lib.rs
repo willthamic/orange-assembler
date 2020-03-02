@@ -80,13 +80,13 @@ enum Opcode {
     NEG,
     NOT,
 
-    // op_rb_rc_c3
-    BR,
-    // BRNV,
-
-
     // op_ra_rb_rc_c3
-    // BRL,
+    BR,
+    BRNV,
+    BRZR,
+    BRNZ,
+    BRPL,
+    BRMI,
 
     // op_ra_rb_n
     SHR,
@@ -219,17 +219,43 @@ fn process_args (inst: &str, opcode: &Opcode) -> Result<Arguments, &'static str>
         Opcode::NEG | Opcode::NOT
             => process_op_ra_rc(inst, &opcode),
 
-        Opcode::BR
+        Opcode::BR | Opcode::BRNV | Opcode::BRZR | Opcode::BRNZ | Opcode::BRPL | Opcode::BRMI
             => process_branch(inst, &opcode),
 
         Opcode::SHR | Opcode::SHRA | Opcode::SHL | Opcode::SHC
-            => process_op_ra_rb_n(inst, &opcode),
-        // _ => Err("temp"),
+            => process_op_ra_rb_rc_c3(inst, &opcode),
     }
 }
 
 fn process_branch (inst: &str, opcode: &Opcode) -> Result<Arguments, &'static str> {
-    Err("NOT IMPLEMENTED TEMP")
+    let (rb, rc) = match opcode {
+        Opcode::BR => (inst, "r0"),
+        Opcode::BRNV if inst.is_empty() => ("r0", "r0"),
+        Opcode::BRZR | Opcode::BRNZ | Opcode::BRPL | Opcode::BRMI
+            => match inst.find(',') {
+                Some(x) => (&inst[..x], &inst[(x+1)..]),
+                None => return Err("Could not parse temp"),
+            },
+        _ => return Err("Opcode could not be matched"),
+    };
+
+    let rb = match register_string_parse(rb) {
+        Ok(x) => Some(x),
+        Err(x) => return Err(x),
+    };
+    let rc = match register_string_parse(rc) {
+        Ok(x) => Some(x),
+        Err(x) => return Err(x),
+    };
+    
+    Ok(Arguments {
+        ra: None,
+        rb: rb,
+        rc: rc,
+        c1: None,
+        c2: None,
+        c3: None,
+    })
 }
 
     // OP,
@@ -299,7 +325,7 @@ fn process_op_ra_rb_c2 (inst: &str, opcode: &Opcode) -> Result<Arguments, &'stat
     };
     let (c2, rb) = match (inst.find('('), inst.find(')')) {
         (Some(x), Some(y)) if (x < y) => (&inst[..x], &inst[(x+1)..y]),
-        _ => (inst, "0"),
+        _ => (inst, "r0"),
     };
 
     let ra = match register_string_parse(ra) {
@@ -377,29 +403,37 @@ fn process_op_ra_rc (inst: &str, opcode: &Opcode) -> Result<Arguments, &'static 
     })
 }
 
-fn process_op_ra_rb_n (inst: &str, opcode: &Opcode) -> Result<Arguments, &'static str> {
+fn process_op_ra_rb_rc_c3 (inst: &str, opcode: &Opcode) -> Result<Arguments, &'static str> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
         None => return Err("no comma temp"),
     };
-    let rc = inst;
+    let (rb, inst) = match inst.find(',') {
+        Some(x) => (&inst[..x], &inst[(x+1)..]),
+        None => return Err("no comma temp"),
+    };
 
     let ra = match register_string_parse(ra) {
         Ok(x) => Some(x),
         Err(x) => return Err(x),
     };
-    let rc = match register_string_parse(rc) {
+    let rb = match register_string_parse(rb) {
         Ok(x) => Some(x),
         Err(x) => return Err(x),
+    };
+    let (rc, c3) = match (register_string_parse(inst), parse_constant(inst)) {
+        (Ok(x), Err(_)) => (Some(x), Some(0)),
+        (Err(_), Ok(x)) => (Some(0), Some(x)),
+        _ => return Err("Could not parse temp"),
     };
 
     Ok(Arguments {
         ra: ra,
-        rb: None,
+        rb: rb,
         rc: rc,
         c1: None,
         c2: None,
-        c3: None,
+        c3: c3,
     })
 }
 
@@ -407,7 +441,7 @@ fn register_string_parse(reg: &str) -> Result<usize, &'static str> {
     let reg = reg.trim();
     if reg.len() < 2 || reg.len() > 3  {
         println!("e:[{}]", reg);
-        return Err("Incorrect register formatting (too many characters)");
+        return Err("Incorrect register formatting (too many/few characters)");
     }
 
     let (a, b) = (reg.chars().next().unwrap(), &reg[1..]);
@@ -496,6 +530,8 @@ mod tests {
             Arguments{ra: Some(23), rb: Some(11), rc: None, c1: None, c2: Some(16), c3: None}),
             ("  r23 ,16( r11)", &Opcode::ST, 
             Arguments{ra: Some(23), rb: Some(11), rc: None, c1: None, c2: Some(16), c3: None}),
+            ("r1, 5", &Opcode::ST, 
+            Arguments{ra: Some(1), rb: Some(0), rc: None, c1: None, c2: Some(5), c3: None}),
         ];
         for test in &tests {
             let result = process_op_ra_rb_c2(test.0, test.1).unwrap();
@@ -509,7 +545,7 @@ mod tests {
             ("a3,b3", &Opcode::NOP),
         ];
         for test in &invalid_tests {
-            let result = process_op_ra_rb_rc(test.0, test.1);
+            let result = process_op_ra_rb_c2(test.0, test.1);
             assert!(result.is_err(), format!("failed with [{}]", test.0));
         }
     }
@@ -536,7 +572,7 @@ mod tests {
             ("a3,5", &Opcode::NOP),
         ];
         for test in &invalid_tests {
-            let result = process_op_ra_rb_rc(test.0, test.1);
+            let result = process_op_ra_c1(test.0, test.1);
             assert!(result.is_err(), format!("failed with [{}]", test.0));
         }
     }
@@ -563,7 +599,71 @@ mod tests {
             ("a3,r5", &Opcode::NOP),
         ];
         for test in &invalid_tests {
-            let result = process_op_ra_rb_rc(test.0, test.1);
+            let result = process_op_ra_rc(test.0, test.1);
+            assert!(result.is_err(), format!("failed with [{}]", test.0));
+        }
+    }
+
+    #[test]
+    fn process_op_ra_rb_rc_c3_test() {
+        let tests = [
+            ("r1, r2, r3", &Opcode::SHR, 
+            Arguments{ra: Some(1), rb: Some(2), rc: Some(3), c1: None, c2: None, c3: Some(0)}),
+            ("r1, r2, 3", &Opcode::SHR, 
+            Arguments{ra: Some(1), rb: Some(2), rc: Some(0), c1: None, c2: None, c3: Some(3)}),
+            (" r1,r2,  r3 ", &Opcode::SHR, 
+            Arguments{ra: Some(1), rb: Some(2), rc: Some(3), c1: None, c2: None, c3: Some(0)}),
+            ("r1,r2,3 ", &Opcode::SHR, 
+            Arguments{ra: Some(1), rb: Some(2), rc: Some(0), c1: None, c2: None, c3: Some(3)}),
+        ];
+        for test in &tests {
+            let result = process_op_ra_rb_rc_c3(test.0, test.1).unwrap();
+            assert_eq!(result, test.2);
+        }
+
+        let invalid_tests = [
+            ("test", &Opcode::NOP),
+            ("r1, r31,a23", &Opcode::NOP),
+            ("r2,r3,,,r3", &Opcode::NOP),
+            ("a3,r5,5", &Opcode::NOP),
+        ];
+        for test in &invalid_tests {
+            let result = process_op_ra_rb_rc_c3(test.0, test.1);
+            assert!(result.is_err(), format!("failed with [{}]", test.0));
+        }
+    }
+
+    #[test]
+    fn process_branch_test() {
+        let tests = [
+            ("r1", &Opcode::BR, 
+            Arguments{ra: None, rb: Some(1), rc: Some(0), c1: None, c2: None, c3: None}),
+            ("", &Opcode::BRNV, 
+            Arguments{ra: None, rb: Some(0), rc: Some(0), c1: None, c2: None, c3: None}),
+            ("r1, r2", &Opcode::BRZR, 
+            Arguments{ra: None, rb: Some(1), rc: Some(2), c1: None, c2: None, c3: None}),
+            ("r1, r2", &Opcode::BRNZ, 
+            Arguments{ra: None, rb: Some(1), rc: Some(2), c1: None, c2: None, c3: None}),
+            ("r1, r2", &Opcode::BRPL, 
+            Arguments{ra: None, rb: Some(1), rc: Some(2), c1: None, c2: None, c3: None}),
+            ("r1, r2", &Opcode::BRMI, 
+            Arguments{ra: None, rb: Some(1), rc: Some(2), c1: None, c2: None, c3: None}),
+        ];
+        for test in &tests {
+            let result = process_branch(test.0, test.1).unwrap();
+            assert_eq!(result, test.2);
+        }
+
+        let invalid_tests = [
+            ("test", &Opcode::NOP),
+            ("r1, r31", &Opcode::BR),
+            ("r1", &Opcode::BRNV),
+            ("a3,r5", &Opcode::BRNZ),
+            ("r3,, r5", &Opcode::BRNZ),
+            ("r3,r5,r6", &Opcode::BRNZ),
+        ];
+        for test in &invalid_tests {
+            let result = process_branch(test.0, test.1);
             assert!(result.is_err(), format!("failed with [{}]", test.0));
         }
     }
