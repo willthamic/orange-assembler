@@ -15,18 +15,18 @@ pub struct Config {
 struct ILine<'a> {
     raw: &'a str,
     label: Option<&'a str>,
-    instruction: Option<Instruction<'a>>,
+    inst: Option<Inst<'a>>,
     comment: Option<&'a str>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Instruction<'a> {
+struct Inst<'a> {
     opcode: Opcode,
-    args: Arguments<'a>,
+    args: Params<'a>,
 }
 
 #[derive(Debug, PartialEq)]
-struct Arguments<'a> {
+struct Params<'a> {
     ra: Option<usize>,
     rb: Option<usize>,
     rc: Option<usize>,
@@ -102,7 +102,7 @@ pub fn run<'a> (config: Config) -> Result<(), Box<dyn Error>> {
     let contents = fs::read_to_string(config.source_path)?;
     let lines = contents.lines();
 
-    let ilines = process_program(&contents)?;
+    let ilines = parse_instructions(&contents)?;
 
     let encoded = encode_ilines(&ilines).unwrap(); //TEMP FIX
 
@@ -112,7 +112,7 @@ pub fn run<'a> (config: Config) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn process_program (contents: &str) -> Result<Vec::<ILine>, &'static str> {
+fn parse_instructions (contents: &str) -> Result<Vec::<ILine>, &'static str> {
     let lines = contents.lines();
     let mut ilines = Vec::<ILine>::new();
 
@@ -130,7 +130,7 @@ fn process_program (contents: &str) -> Result<Vec::<ILine>, &'static str> {
 fn encode_ilines (ilines: &Vec::<ILine>) -> Result<String,&'static str> {
     let mut s: String = String::new();
     for iline in ilines {
-        match &iline.instruction {
+        match &iline.inst {
             Some(x) => s.push_str(&encode_instruction(x)?),
             None => (),
         }
@@ -139,7 +139,7 @@ fn encode_ilines (ilines: &Vec::<ILine>) -> Result<String,&'static str> {
     Ok(s)
 }
 
-fn encode_instruction (inst: &Instruction) -> Result<String, &'static str> {
+fn encode_instruction (inst: &Inst) -> Result<String, &'static str> {
     let op = opcode_to_num(&inst.opcode);
     let ra = match inst.args.ra {
         Some(x) => x, 
@@ -225,7 +225,7 @@ fn process_line (raw: &str) -> Result<Option<ILine>, &'static str> {
     };
     let line = line.trim();
 
-    let instruction = match process_instruction(line) {
+    let inst = match process_instruction(line) {
         Ok(x) => x,
         Err(x) => return Err(x),
     };
@@ -234,14 +234,14 @@ fn process_line (raw: &str) -> Result<Option<ILine>, &'static str> {
         ILine{
             raw,
             label,
-            instruction,
+            inst,
             comment,
         }
     ))
     
 }
 
-fn process_instruction(inst: &str) -> Result<Option<Instruction>, &'static str> {
+fn process_instruction(inst: &str) -> Result<Option<Inst>, &'static str> {
     if inst.is_empty() {
         Ok(None)
     } else {
@@ -257,14 +257,14 @@ fn process_instruction(inst: &str) -> Result<Option<Instruction>, &'static str> 
             Ok(x) => x,
             Err(x) => return Err(x),
         };
-        Ok(Some(Instruction{
+        Ok(Some(Inst{
             opcode,
             args,
         }))
     }
 }
 
-fn process_args<'a> (inst: &'a str, opcode: &Opcode) -> Result<Arguments<'a>, &'static str> {
+fn process_args<'a> (inst: &'a str, opcode: &Opcode) -> Result<Params<'a>, &'static str> {
     match opcode {
         Opcode::NOP | Opcode::STOP 
             => process_op(inst),
@@ -292,7 +292,7 @@ fn process_args<'a> (inst: &'a str, opcode: &Opcode) -> Result<Arguments<'a>, &'
     }
 }
 
-fn process_branch<'a> (inst: &'a str, opcode: &Opcode) -> Result<Arguments<'a>, &'static str> {
+fn process_branch<'a> (inst: &'a str, opcode: &Opcode) -> Result<Params<'a>, &'static str> {
     let (rb, rc) = match opcode {
         Opcode::BR => (inst, "r0"),
         Opcode::BRNV if inst.is_empty() => ("r0", "r0"),
@@ -313,7 +313,7 @@ fn process_branch<'a> (inst: &'a str, opcode: &Opcode) -> Result<Arguments<'a>, 
         Err(x) => return Err(x),
     };
     
-    Ok(Arguments {
+    Ok(Params {
         ra: None,
         rb: rb,
         rc: rc,
@@ -323,12 +323,12 @@ fn process_branch<'a> (inst: &'a str, opcode: &Opcode) -> Result<Arguments<'a>, 
     })
 }
 
-fn process_op (inst: &str) -> Result<Arguments, &'static str> {
+fn process_op (inst: &str) -> Result<Params, &'static str> {
     let inst = inst.trim();
     match inst.is_empty() {
         false => Err("why are there arguments"),
         true => {
-            Ok(Arguments {
+            Ok(Params {
                 ra: None,
                 rb: None,
                 rc: None,
@@ -340,7 +340,7 @@ fn process_op (inst: &str) -> Result<Arguments, &'static str> {
     }
 }
 
-fn process_op_ra_rb_rc (inst: &str) -> Result<Arguments, &'static str> {
+fn process_op_ra_rb_rc (inst: &str) -> Result<Params, &'static str> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
         None => return Err("no comma temp"),
@@ -364,7 +364,7 @@ fn process_op_ra_rb_rc (inst: &str) -> Result<Arguments, &'static str> {
         Err(x) => return Err(x),
     };
 
-    Ok(Arguments {
+    Ok(Params {
         ra: ra,
         rb: rb,
         rc: rc,
@@ -374,7 +374,7 @@ fn process_op_ra_rb_rc (inst: &str) -> Result<Arguments, &'static str> {
     })
 }
 
-fn process_op_ra_c2_rb (inst: &str) -> Result<Arguments, &'static str> {
+fn process_op_ra_c2_rb (inst: &str) -> Result<Params, &'static str> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
         None => return Err("no comma temp"),
@@ -397,7 +397,7 @@ fn process_op_ra_c2_rb (inst: &str) -> Result<Arguments, &'static str> {
         Err(x) => return Err(x),
     };
 
-    Ok(Arguments {
+    Ok(Params {
         ra: ra,
         rb: rb,
         rc: None,
@@ -407,7 +407,7 @@ fn process_op_ra_c2_rb (inst: &str) -> Result<Arguments, &'static str> {
     })
 }
 
-fn process_op_ra_rb_c2 (inst: &str) -> Result<Arguments, &'static str> {
+fn process_op_ra_rb_c2 (inst: &str) -> Result<Params, &'static str> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
         None => return Err("no comma temp"),
@@ -431,7 +431,7 @@ fn process_op_ra_rb_c2 (inst: &str) -> Result<Arguments, &'static str> {
         Err(x) => return Err(x),
     };
 
-    Ok(Arguments {
+    Ok(Params {
         ra: ra,
         rb: rb,
         rc: None,
@@ -441,7 +441,7 @@ fn process_op_ra_rb_c2 (inst: &str) -> Result<Arguments, &'static str> {
     })
 }
 
-fn process_op_ra_c1 (inst: &str) -> Result<Arguments, &'static str> {
+fn process_op_ra_c1 (inst: &str) -> Result<Params, &'static str> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
         None => return Err("no comma temp"),
@@ -457,7 +457,7 @@ fn process_op_ra_c1 (inst: &str) -> Result<Arguments, &'static str> {
         Err(x) => return Err(x),
     };
 
-    Ok(Arguments {
+    Ok(Params {
         ra: ra,
         rb: None,
         rc: None,
@@ -467,7 +467,7 @@ fn process_op_ra_c1 (inst: &str) -> Result<Arguments, &'static str> {
     })
 }
 
-fn process_op_ra_rc (inst: &str) -> Result<Arguments, &'static str> {
+fn process_op_ra_rc (inst: &str) -> Result<Params, &'static str> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
         None => return Err("no comma temp"),
@@ -483,7 +483,7 @@ fn process_op_ra_rc (inst: &str) -> Result<Arguments, &'static str> {
         Err(x) => return Err(x),
     };
 
-    Ok(Arguments {
+    Ok(Params {
         ra: ra,
         rb: None,
         rc: rc,
@@ -493,7 +493,7 @@ fn process_op_ra_rc (inst: &str) -> Result<Arguments, &'static str> {
     })
 }
 
-fn process_op_ra_rb_rc_c3 (inst: &str) -> Result<Arguments, &'static str> {
+fn process_op_ra_rb_rc_c3 (inst: &str) -> Result<Params, &'static str> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
         None => return Err("no comma temp"),
@@ -517,7 +517,7 @@ fn process_op_ra_rb_rc_c3 (inst: &str) -> Result<Arguments, &'static str> {
         _ => return Err("Could not parse temp"),
     };
 
-    Ok(Arguments {
+    Ok(Params {
         ra: ra,
         rb: rb,
         rc: rc,
