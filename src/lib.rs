@@ -4,9 +4,11 @@ use std::path::PathBuf;
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
+#[macro_use]
+extern crate simple_error;
 
 mod inst;
-mod prog;
+pub mod prog;
 
 pub struct Config {
     pub source_path: PathBuf,
@@ -14,9 +16,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &'static str> {
+    pub fn new(args: &[String]) -> Result<Config, Box<dyn Error>> {
         if args.len() < 2 {
-            return Err("not enough arguments");
+            bail!("not enough arguments");
         }
 
         let source_path = PathBuf::from(args[1].clone());
@@ -38,9 +40,3 @@ pub fn run<'a> (config: Config) -> Result<(), Box<dyn Error>> {
 
     Ok(())
 }
-
-#[cfg(test)]
-mod test;
-
-// #[cfg(test)]
-// mod inst;

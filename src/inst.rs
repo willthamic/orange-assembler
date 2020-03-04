@@ -1,10 +1,19 @@
+use std::error::Error;
 use std::str::FromStr;
+use std::collections::HashMap;
 
 pub struct InstLine<'a> {
     pub raw: &'a str,
     pub label: Option<&'a str>,
     inst: Option<Inst<'a>>,
-    pub comment: Option<&'a str>,
+    pub offset: Offset,
+    comment: Option<&'a str>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Offset {
+    Relative(usize),
+    Absolute(usize),
 }
 
 #[derive(Debug, PartialEq)]
@@ -108,7 +117,7 @@ impl Opcode {
 }
 
 impl<'a> InstLine<'a> {
-    pub fn new(inst: &str) -> Result<Option<InstLine>, &'static str> {
+    pub fn new(inst: &'a str) -> Result<Option<InstLine<'a>>, Box<dyn Error>> {
         let raw = inst;
         let line = raw.trim();
 
@@ -122,37 +131,38 @@ impl<'a> InstLine<'a> {
             None    => (line[ ..].trim(), None)
         };
 
-            println!("inst:[{}]", line);
-
-        let inst = process_instruction(line)?;
+        let (inst, offset) = match line.find('.') {
+            Some(x) => (None, process_directive(line)?),
+            None => match process_instruction(line)? {
+                Some(x) => (Some(x), Offset::Relative(4)),
+                None => (None, Offset::Relative(0)),
+            }, 
+        };
 
         Ok(Some(
             InstLine{
                 raw,
                 label,
                 inst,
+                offset,
                 comment,
             }
         ))
     }
 
-    pub fn encode_instruction(self: &Self) -> Result<String, &'static str> {
-        match &self.inst {
-            Some(x) => x.encode_instruction(),
-            None => Err("No instruction"),
-        }
-    }
-
-    pub fn has_inst(self: &Self) -> bool {
-        match &self.inst {
-            Some(_) => true,
-            None => false,
+    pub fn encode_instruction(self: &Self, symbol_map: &HashMap<&'a str, usize>, pc: usize) -> Result<Option<usize>, Box<dyn Error>> {
+        match &self.inst.is_some() {
+            true => match &self.inst {
+                        Some(x) => Ok(Some(x.encode_instruction(symbol_map, pc)?)),
+                        None => bail!("No instruction"),
+                    },
+            false => Ok(None),
         }
     }
 }
 
 impl<'a> Inst<'a> {
-    pub fn encode_instruction(self: &Self) -> Result<String, &'static str> {
+    pub fn encode_instruction(self: &Self, symbol_map: &HashMap<&'a str, usize>, pc: usize) -> Result<usize, Box<dyn Error>> {
         let op = self.opcode.to_num();
         let ra = match self.params.ra {
             Some(x) => x, 
@@ -167,18 +177,28 @@ impl<'a> Inst<'a> {
             None => 0,
         };
         let c1 = match self.params.c1 {
-            Some(Con::C(x)) => x,
-            Some(Con::S(_)) => return Err("Undefined symbol"),
+            Some(Con::C(x)) => (x + (1<<22) - 4 - pc) % (1<<22),
+            Some(Con::S(s)) => match symbol_map.get(s) {
+                Some(x) => (*x + (1<<22) - 4 - pc) % (1<<22),
+                None => bail!("Undefined symbol"),
+            },
             None => 0,
         };
+    
         let c2 = match self.params.c2 {
             Some(Con::C(x)) => x,
-            Some(Con::S(_)) => return Err("Undefined symbol"),
+            Some(Con::S(s)) => match symbol_map.get(s) {
+                Some(x) => *x,
+                None => bail!("Undefined symbol"),
+            },
             None => 0,
         };
         let c3 = match self.params.c3 {
             Some(Con::C(x)) => x,
-            Some(Con::S(_)) => return Err("Undefined symbol"),
+            Some(Con::S(s)) => match symbol_map.get(s) {
+                Some(x) => *x,
+                None => bail!("Undefined symbol"),
+            },
             None => 0,
         };
 
@@ -187,13 +207,13 @@ impl<'a> Inst<'a> {
         let rb = rb << 17;
         let rc = rc << 12;
 
-        let ret = op + ra + rb + rc + c1 + c2 + c3;
+        print!("op:{}, r1:{}, r2:{}, r3:{}, c1:{}, c2:{}, c3:{}, sum:{}", op, ra, rb, rc, c1, c2, c3, op + ra + rb + rc + c1 + c2 + c3);
 
-        Ok(format!("{:x}", ret))
+        Ok(op + ra + rb + rc + c1 + c2 + c3)
     }
 }
 
-fn process_instruction(inst: &str) -> Result<Option<Inst>, &'static str> {
+fn process_instruction<'a>(inst: &'a str) -> Result<Option<Inst<'a>>, Box<dyn Error>> {
     if inst.is_empty() {
         Ok(None)
     } else {
@@ -203,7 +223,7 @@ fn process_instruction(inst: &str) -> Result<Option<Inst>, &'static str> {
         };
         let opcode = match Opcode::from_str(&opcode.to_uppercase()) {
             Ok(x) => x,
-            Err(_) => return Err("Opcode not found"),
+            Err(_) => bail!("Opcode not found"),
         };
         let params = match process_params(inst, &opcode) {
             Ok(x) => x,
@@ -216,7 +236,19 @@ fn process_instruction(inst: &str) -> Result<Option<Inst>, &'static str> {
     }
 }
 
-fn process_params<'a> (inst: &'a str, opcode: &Opcode) -> Result<Params<'a>, &'static str> {
+fn process_directive<'a>(line: &str) -> Result<Offset, Box<dyn Error>> {
+    let (dir, val) = match line.find(' ') {
+        Some(x) => (line[..x].trim(), line[(x+1)..].trim()),
+        None => bail!("Could not interpret directive (no parameter)"), 
+    };
+    match dir {
+        ".org" => Ok(Offset::Absolute(val.parse::<usize>()?)),
+        ".dw" => Ok(Offset::Relative(32 * val.parse::<usize>()?)),
+        _ => bail!("Could not interpret directive (invalid directive)"),
+    }
+}
+
+fn process_params<'a> (inst: &'a str, opcode: &Opcode) -> Result<Params<'a>, Box<dyn Error>> {
     match opcode {
         Opcode::NOP | Opcode::STOP 
             => process_op(inst),
@@ -244,16 +276,16 @@ fn process_params<'a> (inst: &'a str, opcode: &Opcode) -> Result<Params<'a>, &'s
     }
 }
 
-fn process_branch<'a> (inst: &'a str, opcode: &Opcode) -> Result<Params<'a>, &'static str> {
+fn process_branch<'a> (inst: &'a str, opcode: &Opcode) -> Result<Params<'a>, Box<dyn Error>> {
     let (rb, rc) = match opcode {
         Opcode::BR => (inst, "r0"),
         Opcode::BRNV if inst.is_empty() => ("r0", "r0"),
         Opcode::BRZR | Opcode::BRNZ | Opcode::BRPL | Opcode::BRMI
             => match inst.find(',') {
                 Some(x) => (&inst[..x], &inst[(x+1)..]),
-                None => return Err("Could not parse temp"),
+                None => bail!("Could not parse temp"),
             },
-        _ => return Err("Opcode could not be matched"),
+        _ => bail!("Opcode could not be matched"),
     };
 
     let rb = match register_string_parse(rb) {
@@ -285,10 +317,10 @@ fn process_branch<'a> (inst: &'a str, opcode: &Opcode) -> Result<Params<'a>, &'s
     })
 }
 
-fn process_op (inst: &str) -> Result<Params, &'static str> {
+fn process_op (inst: &str) -> Result<Params, Box<dyn Error>> {
     let inst = inst.trim();
     match inst.is_empty() {
-        false => Err("why are there arguments"),
+        false => bail!("why are there arguments"),
         true => {
             Ok(Params {
                 ra: None,
@@ -302,14 +334,14 @@ fn process_op (inst: &str) -> Result<Params, &'static str> {
     }
 }
 
-fn process_op_ra_rb_rc (inst: &str) -> Result<Params, &'static str> {
+fn process_op_ra_rb_rc (inst: &str) -> Result<Params, Box<dyn Error>> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
     let (rb, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
     let rc = inst;
 
@@ -336,10 +368,10 @@ fn process_op_ra_rb_rc (inst: &str) -> Result<Params, &'static str> {
     })
 }
 
-fn process_op_ra_c2_rb (inst: &str) -> Result<Params, &'static str> {
+fn process_op_ra_c2_rb (inst: &str) -> Result<Params, Box<dyn Error>> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
     let (c2, rb) = match (inst.find('('), inst.find(')')) {
         (Some(x), Some(y)) if (x < y) => (&inst[..x], &inst[(x+1)..y]),
@@ -369,14 +401,14 @@ fn process_op_ra_c2_rb (inst: &str) -> Result<Params, &'static str> {
     })
 }
 
-fn process_op_ra_rb_c2 (inst: &str) -> Result<Params, &'static str> {
+fn process_op_ra_rb_c2 (inst: &str) -> Result<Params, Box<dyn Error>> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
     let (rb, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
     let c2 = inst;
 
@@ -403,10 +435,10 @@ fn process_op_ra_rb_c2 (inst: &str) -> Result<Params, &'static str> {
     })
 }
 
-fn process_op_ra_c1 (inst: &str) -> Result<Params, &'static str> {
+fn process_op_ra_c1 (inst: &str) -> Result<Params, Box<dyn Error>> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
     let c1 = inst;
 
@@ -429,10 +461,10 @@ fn process_op_ra_c1 (inst: &str) -> Result<Params, &'static str> {
     })
 }
 
-fn process_op_ra_rc (inst: &str) -> Result<Params, &'static str> {
+fn process_op_ra_rc (inst: &str) -> Result<Params, Box<dyn Error>> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
     let rc = inst;
 
@@ -455,14 +487,14 @@ fn process_op_ra_rc (inst: &str) -> Result<Params, &'static str> {
     })
 }
 
-fn process_op_ra_rb_rc_c3 (inst: &str) -> Result<Params, &'static str> {
+fn process_op_ra_rb_rc_c3 (inst: &str) -> Result<Params, Box<dyn Error>> {
     let (ra, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
     let (rb, inst) = match inst.find(',') {
         Some(x) => (&inst[..x], &inst[(x+1)..]),
-        None => return Err("no comma temp"),
+        None => bail!("no comma temp"),
     };
 
     let ra = match register_string_parse(ra) {
@@ -476,7 +508,7 @@ fn process_op_ra_rb_rc_c3 (inst: &str) -> Result<Params, &'static str> {
     let (rc, c3) = match (register_string_parse(inst), parse_constant(inst)) {
         (Ok(x), Err(_)) => (Some(x), Some(Con::C(0))),
         (Err(_), Ok(x)) => (Some(0), Some(x)),
-        _ => return Err("Could not parse temp"),
+        _ => bail!("Could not parse temp"),
     };
 
     Ok(Params {
@@ -489,35 +521,35 @@ fn process_op_ra_rb_rc_c3 (inst: &str) -> Result<Params, &'static str> {
     })
 }
 
-fn register_string_parse(reg: &str) -> Result<usize, &'static str> {
+fn register_string_parse(reg: &str) -> Result<usize, Box<dyn Error>> {
     let reg = reg.trim();
     if reg.len() < 2 || reg.len() > 3  {
         println!("e:[{}]", reg);
-        return Err("Incorrect register formatting (too many/few characters)");
+        bail!("Incorrect register formatting (too many/few characters)");
     }
 
     let (a, b) = (reg.chars().next().unwrap(), &reg[1..]);
 
     if a != 'r' {
-        return Err("Incorrect register formatting (does not start with 'r')");
+        bail!("Incorrect register formatting (does not start with 'r')");
     }
 
     let ret = b.parse::<usize>();
 
     match ret {
         Ok(x) if x < 32 => Ok(x),
-        Ok(_) => Err("Invalid register"),
-        Err(_) => Err("Incorrect register formatting (could not parse index)"),
+        Ok(_) => bail!("Invalid register"),
+        Err(_) => bail!("Incorrect register formatting (could not parse index)"),
     }
 }
 
-fn parse_constant<'a>(con: &'a str) -> Result<Con, &'static str> {
+fn parse_constant<'a>(con: &'a str) -> Result<Con, Box<dyn Error>> {
     let con = con.trim();
     match con.parse::<usize>() {
         Ok(x) => Ok(Con::C(x)),
-        Err(_) => match con.chars().all(char::is_alphabetic) {
+        Err(_) => match con.chars().all(char::is_alphanumeric) {
             true => Ok(Con::S(con)),
-            false => Err("Could not parse constant"),
+            false => bail!("Could not parse constant"),
         },
     }
 }
@@ -543,20 +575,30 @@ mod test {
     }
 
     #[test]
-    fn instruction_test() {
+    fn process_instruction_test() {
         let tests = [
-            ("add r1, r2, r3", "60443000"),
-            ("andi r1,r1,1", "a8420001"),
-            ("brnz r31,r3", "403e3003"),
-            ("br r29", "403a0001"),
-            ("stop", "f8000000"),
-            ("st r1,0(r30)", "187c0000"),
-            // ("", ""),
-            // ("", ""),
+            ("add r1, r2, r3", 0x60443000),
+            ("andi r1,r1,1", 0xa8420001),
+            ("brnz r31,r3", 0x403e3003),
+            ("br r29", 0x403a0001),
+            ("stop", 0xf8000000),
+            ("st r1,0(r30)", 0x187c0000),
         ];
         for test in &tests {
             let result = process_instruction(test.0).unwrap().unwrap();
-            let result = result.encode_instruction().unwrap();
+            let result = result.encode_instruction(&HashMap::new(), 0).unwrap();
+            assert_eq!(result, test.1);
+        }
+    }
+
+    #[test]
+    fn process_directive_test() {
+        let tests = [
+            (".org 0", Offset::Absolute(0)),
+            (".dw 10", Offset::Relative(320)),
+        ];
+        for test in &tests {
+            let result = process_directive(test.0).unwrap();
             assert_eq!(result, test.1);
         }
     }
