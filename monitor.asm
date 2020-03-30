@@ -58,20 +58,22 @@ Q0:	ld r4, 0xFFE0 ; Read TX_BUSY into r4
 	st r5, 0xFFE4 ; Store r5 to TX_DATA
 
 Q1:	ld r4, 0xFFE0 ; Read TX_BUSY into r4
-	brnz r26, r4 ; Branch up if TX_BUSY = 1
+	brnz r25, r4 ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0 ; Clear r5
-	addi r5, r5, 82 ; Set r5 to 'R'
+	addi r5, r5, 73 ; Set r5 to 'I'
 	st r5, 0xFFE4 ; Store r5 to TX_DATA
 
 Q2:	ld r4, 0xFFE0 ; Read TX_BUSY into r4
-	brnz r26, r4 ; Branch up if TX_BUSY = 1
+	brnz r24, r4 ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0 ; Clear r5
-	addi r5, r5, 82 ; Set r5 to 'R'
+	addi r5, r5, 67 ; Set r5 to 'C'
 	st r5, 0xFFE4 ; Store r5 to TX_DATA
 
-Q3:	ld r4, 0xFFE0 ; Read TX_BUSY into r4
-	brnz r26, r4 ; Branch up if TX_BUSY = 1
-	andi r5, r5, 0 ; Clear r5
-	addi r5, r5, 82 ; Set r5 to 'R'
-	st r5, 0xFFE4 ; Store r5 to TX_DATA
+Q3:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+	brnz r23, r4    ; Branch up if TX_BUSY = 1
+	andi r5, r5, 0  ; Clear r5
+	addi r5, r5, 72 ; Set r5 to 'H'
+	st r5, 0xFFE4   ; Store r5 to TX_DATA
+
+	br r31 ; Branch to beginning of program
 	
