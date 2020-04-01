@@ -186,7 +186,7 @@ impl<'a> Inst<'a> {
         };
     
         let c2 = match self.params.c2 {
-            Some(Con::C(x)) => x,
+            Some(Con::C(x)) => x % (1<<17),
             Some(Con::S(s)) => match symbol_map.get(s) {
                 Some(x) => *x,
                 None => bail!("Undefined symbol"),
@@ -194,7 +194,7 @@ impl<'a> Inst<'a> {
             None => 0,
         };
         let c3 = match self.params.c3 {
-            Some(Con::C(x)) => x,
+            Some(Con::C(x)) => x % (1<<12),
             Some(Con::S(s)) => match symbol_map.get(s) {
                 Some(x) => *x,
                 None => bail!("Undefined symbol"),
@@ -545,13 +545,24 @@ fn register_string_parse(reg: &str) -> Result<usize, Box<dyn Error>> {
 
 fn parse_constant<'a>(con: &'a str) -> Result<Con, Box<dyn Error>> {
     let con = con.trim();
-    match con.parse::<usize>() {
-        Ok(x) => Ok(Con::C(x)),
-        Err(_) => match con.chars().all(char::is_alphanumeric) {
-            true => Ok(Con::S(con)),
-            false => bail!("Could not parse constant"),
+    let ch = con.chars().next().unwrap();
+    match ch {
+        '-' => match con[1..].parse::<usize>() {
+            Ok(x) => Ok(Con::C(!x + 1)),
+            Err(_) => match con.chars().all(char::is_alphanumeric) {
+                true => Ok(Con::S(con)),
+                false => bail!(format!("Could not parse constant \"{}\"", con)),
+            },
         },
+        _ => match con.parse::<usize>() {
+            Ok(x) => Ok(Con::C(x)),
+            Err(_) => match con.chars().all(char::is_alphanumeric) {
+                true => Ok(Con::S(con)),
+                false => bail!(format!("Could not parse constant \"{}\"", con)),
+            },
+        }
     }
+    
 }
 
 #[cfg(test)]
