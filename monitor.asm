@@ -239,27 +239,27 @@ RX0:	ld r1, 0xFFE8  ; Load RX_DATA_FLAG into r1
 	brzr r26, r1   ; Loop until RX_DATA_FLAG goes high
 	ld r2, 0xFFEC  ; Load RX_DATA into r2
 	shl r2, r2, 24 ; Shift left 24 bits
-	addi r3, r2, 0 ; Add shifted RX_DATA into r3 
+	add r3, r3, r2 ; Add shifted RX_DATA into r3 
 
 	la r26, RX1    ; Update loop address
 RX1:	ld r1, 0xFFE8  ; Load RX_DATA_FLAG into r1
 	brzr r26, r1   ; Loop until RX_DATA_FLAG goes high
 	ld r2, 0xFFEC  ; Load RX_DATA into r2
 	shl r2, r2, 16 ; Shift left 16 bits
-	addi r3, r2, 0 ; Add shifted RX_DATA into r3 
+	add r3, r3, r2 ; Add shifted RX_DATA into r3 
 
 	la r26, RX2    ; Update loop address
 RX2:	ld r1, 0xFFE8  ; Load RX_DATA_FLAG into r1
 	brzr r26, r1   ; Loop until RX_DATA_FLAG goes high
 	ld r2, 0xFFEC  ; Load RX_DATA into r2
 	shl r2, r2, 8  ; Shift left 8 bits
-	addi r3, r2, 0 ; Add shifted RX_DATA into r3 
+	add r3, r3, r2 ; Add shifted RX_DATA into r3 
 
 	la r26, RX3    ; Update loop address
 RX3:	ld r1, 0xFFE8  ; Load RX_DATA_FLAG into r1
 	brzr r26, r1   ; Loop until RX_DATA_FLAG goes high
 	ld r2, 0xFFEC  ; Load RX_DATA into r2
-	addi r3, r2, 0 ; Add shifted RX_DATA into r3 
+	add r3, r3, r2 ; Add shifted RX_DATA into r3 
 
 	br r25 ; Branch out of subroutine
 
@@ -295,3 +295,5 @@ TX2:	ld r4, 0xFFE0       ; Read TX_BUSY into r4
 TX3:	ld r4, 0xFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
 	st r7, 0xFFE4       ; Store r7 to TX_DATA
+
+	br r25 ; Branch out of subroutine
