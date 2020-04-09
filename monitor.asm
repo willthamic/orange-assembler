@@ -23,10 +23,10 @@
 ; CONTROL SWITCH STATEMENT ;
 ;==========================;
 
-L1:	ld r1, 0xFFE8 ; Load RX_DATA_FLAG into r1
+L1:	ld r1, 0xFFFFFFE8 ; Load RX_DATA_FLAG into r1
 	brzr r31, r1 ; Loop until RX_DATA_FLAG goes high
 
-	ld r2, 0xFFEC ; Load RX_DATA into r2
+	ld r2, 0xFFFFFFEC ; Load RX_DATA into r2
 
 	; CASE '?'
 	andi r3, r3, 0 ; Clear r3
@@ -60,115 +60,115 @@ LQ:	nop
 
 	; Send 'R'
 	la r26, LQ0     ; Update loop address
-LQ0:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ0:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 82 ; Set r5 to 'R'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA	
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA	
 
 	; Send 'I'
 	la r26, LQ1     ; Update loop address
-LQ1:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ1:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 73 ; Set r5 to 'I'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 
 	; Send 'C'
 	la r26, LQ2     ; Update loop address
-LQ2:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ2:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 67 ; Set r5 to 'C'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'H'
 	la r26, LQ3     ; Update loop address
-LQ3:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ3:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 72 ; Set r5 to 'H'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'A'
 	la r26, LQ4     ; Update loop address
-LQ4:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ4:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 65 ; Set r5 to 'A'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'R'
 	la r26, LQ5     ; Update loop address
-LQ5:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ5:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 82 ; Set r5 to 'R'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'D'
 	la r26, LQ6     ; Update loop address
-LQ6:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ6:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 68 ; Set r5 to 'D'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'U'
 	la r26, LQ7     ; Update loop address
-LQ7:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ7:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 85 ; Set r5 to 'U'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'I'
 	la r26, LQ8     ; Update loop address
-LQ8:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ8:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 73 ; Set r5 to 'I'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'N'
 	la r26, LQ9     ; Update loop address
-LQ9:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQ9:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 78 ; Set r5 to 'N'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'O'
 	la r26, LQA     ; Update loop address
-LQA:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQA:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 79 ; Set r5 to 'O'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send ' '
 	la r26, LQB     ; Update loop address
-LQB:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQB:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 32 ; Set r5 to ' '
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send 'V'
 	la r26, LQC     ; Update loop address
-LQC:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQC:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 86 ; Set r5 to 'V'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 	
 	; Send '2'
 	la r26, LQD     ; Update loop address
-LQD:	ld r4, 0xFFE0   ; Read TX_BUSY into r4
+LQD:	ld r4, 0xFFFFFFE0   ; Read TX_BUSY into r4
 	brnz r26, r4    ; Branch up if TX_BUSY = 1
 	andi r5, r5, 0  ; Clear r5
 	addi r5, r5, 50 ; Set r5 to '2'
-	st r5, 0xFFE4   ; Store r5 to TX_DATA
+	st r5, 0xFFFFFFE4   ; Store r5 to TX_DATA
 
 	br r31 ; Branch to beginning of program
 	
@@ -235,30 +235,30 @@ LR1:	br r31 ; Branch to beginning of program
 RX:	andi r3, r3, 0 ; Clear r3
 	
 	la r26, RX0    ; Update loop address
-RX0:	ld r1, 0xFFE8  ; Load RX_DATA_FLAG into r1
+RX0:	ld r1, 0xFFFFFFE8  ; Load RX_DATA_FLAG into r1
 	brzr r26, r1   ; Loop until RX_DATA_FLAG goes high
-	ld r2, 0xFFEC  ; Load RX_DATA into r2
+	ld r2, 0xFFFFFFEC  ; Load RX_DATA into r2
 	shl r2, r2, 24 ; Shift left 24 bits
 	add r3, r3, r2 ; Add shifted RX_DATA into r3 
 
 	la r26, RX1    ; Update loop address
-RX1:	ld r1, 0xFFE8  ; Load RX_DATA_FLAG into r1
+RX1:	ld r1, 0xFFFFFFE8  ; Load RX_DATA_FLAG into r1
 	brzr r26, r1   ; Loop until RX_DATA_FLAG goes high
-	ld r2, 0xFFEC  ; Load RX_DATA into r2
+	ld r2, 0xFFFFFFEC  ; Load RX_DATA into r2
 	shl r2, r2, 16 ; Shift left 16 bits
 	add r3, r3, r2 ; Add shifted RX_DATA into r3 
 
 	la r26, RX2    ; Update loop address
-RX2:	ld r1, 0xFFE8  ; Load RX_DATA_FLAG into r1
+RX2:	ld r1, 0xFFFFFFE8  ; Load RX_DATA_FLAG into r1
 	brzr r26, r1   ; Loop until RX_DATA_FLAG goes high
-	ld r2, 0xFFEC  ; Load RX_DATA into r2
+	ld r2, 0xFFFFFFEC  ; Load RX_DATA into r2
 	shl r2, r2, 8  ; Shift left 8 bits
 	add r3, r3, r2 ; Add shifted RX_DATA into r3 
 
 	la r26, RX3    ; Update loop address
-RX3:	ld r1, 0xFFE8  ; Load RX_DATA_FLAG into r1
+RX3:	ld r1, 0xFFFFFFE8  ; Load RX_DATA_FLAG into r1
 	brzr r26, r1   ; Loop until RX_DATA_FLAG goes high
-	ld r2, 0xFFEC  ; Load RX_DATA into r2
+	ld r2, 0xFFFFFFEC  ; Load RX_DATA into r2
 	add r3, r3, r2 ; Add shifted RX_DATA into r3 
 
 	br r25 ; Branch out of subroutine
@@ -272,28 +272,28 @@ TX:	nop
 	andi r7, r6, 0xF000 ; Copy first byte into scratch register
 	shr r7, r7, 24      ; Shift right by 24
 	la r26, TX0         ; Update loop address
-TX0:	ld r4, 0xFFE0       ; Read TX_BUSY into r4
+TX0:	ld r4, 0xFFFFFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
-	st r7, 0xFFE4       ; Store r7 to TX_DATA
+	st r7, 0xFFFFFFE4       ; Store r7 to TX_DATA
 
 	andi r7, r6, 0x0F00 ; Copy second byte into scratch register
 	shr r7, r7, 16      ; Shift right by 16
 	la r26, TX1         ; Update loop address
-TX1:	ld r4, 0xFFE0       ; Read TX_BUSY into r4
+TX1:	ld r4, 0xFFFFFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
-	st r7, 0xFFE4       ; Store r7 to TX_DATA
+	st r7, 0xFFFFFFE4       ; Store r7 to TX_DATA
 
 	andi r7, r6, 0x00F0 ; Copy third byte into scratch register
 	shr r7, r7, 8       ; Shift right by 8
 	la r26, TX2         ; Update loop address
-TX2:	ld r4, 0xFFE0       ; Read TX_BUSY into r4
+TX2:	ld r4, 0xFFFFFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
-	st r7, 0xFFE4       ; Store r7 to TX_DATA
+	st r7, 0xFFFFFFE4       ; Store r7 to TX_DATA
 
 	andi r7, r6, 0x000F ; Copy fourth byte into scratch register
 	la r26, TX3         ; Update loop address
-TX3:	ld r4, 0xFFE0       ; Read TX_BUSY into r4
+TX3:	ld r4, 0xFFFFFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
-	st r7, 0xFFE4       ; Store r7 to TX_DATA
+	st r7, 0xFFFFFFE4       ; Store r7 to TX_DATA
 
 	br r25 ; Branch out of subroutine
