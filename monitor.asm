@@ -194,7 +194,8 @@ LP2:	st r3, 4096(r9) ; Write read value into address
 	la r26, LP1     ; Set r26 to LP1
 	brnz r26, r7    ; Branch to LP1 if not done writing program
 
-	br r31 ; Branch to beginning of program
+	la r26, 4096
+	br r26 ; Branch to beginning of loaded program
 
 ;=============;
 ; WRITE LOGIC ;
@@ -269,28 +270,28 @@ RX3:	ld r1, 0xFFFFFFE8  ; Load RX_DATA_FLAG into r1
 
 TX:	nop
 
-	andi r7, r6, 0xF000 ; Copy first byte into scratch register
+	andi r7, r6, 0xFF000000 ; Copy first byte into scratch register
 	shr r7, r7, 24      ; Shift right by 24
 	la r26, TX0         ; Update loop address
 TX0:	ld r4, 0xFFFFFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
 	st r7, 0xFFFFFFE4       ; Store r7 to TX_DATA
 
-	andi r7, r6, 0x0F00 ; Copy second byte into scratch register
+	andi r7, r6, 0x00FF0000 ; Copy second byte into scratch register
 	shr r7, r7, 16      ; Shift right by 16
 	la r26, TX1         ; Update loop address
 TX1:	ld r4, 0xFFFFFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
 	st r7, 0xFFFFFFE4       ; Store r7 to TX_DATA
 
-	andi r7, r6, 0x00F0 ; Copy third byte into scratch register
+	andi r7, r6, 0x0000FF00 ; Copy third byte into scratch register
 	shr r7, r7, 8       ; Shift right by 8
 	la r26, TX2         ; Update loop address
 TX2:	ld r4, 0xFFFFFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
 	st r7, 0xFFFFFFE4       ; Store r7 to TX_DATA
 
-	andi r7, r6, 0x000F ; Copy fourth byte into scratch register
+	andi r7, r6, 0x000000FF ; Copy fourth byte into scratch register
 	la r26, TX3         ; Update loop address
 TX3:	ld r4, 0xFFFFFFE0       ; Read TX_BUSY into r4
 	brnz r26, r4        ; Branch up if TX_BUSY = 1
